@@ -1,4 +1,4 @@
-import { Client, Databases, Users, Account } from 'node-appwrite';
+import { Client, Databases, Users, Account, Query } from 'node-appwrite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,8 +18,9 @@ class AppwriteClient {
 
     async testConnection() {
         try {
-            const project = await this.client.getProject();
-            console.log('✅ Connected to Appwrite project:', project.name);
+            const databases = await this.databases.list();
+            console.log('✅ Connected to Appwrite project successfully');
+            console.log(`📊 Found ${databases.databases.length} databases`);
             return true;
         } catch (error) {
             console.error('❌ Failed to connect to Appwrite:', error.message);
@@ -57,15 +58,37 @@ class AppwriteClient {
         }
     }
 
+    async getDocumentCount(databaseId, collectionId) {
+        try {
+            // Get first document to check total count
+            const response = await this.databases.listDocuments(
+                databaseId,
+                collectionId,
+                [],  // queries
+                1,   // limit
+                0    // offset
+            );
+            return response.total;
+        } catch (error) {
+            console.error(`Error fetching document count for collection ${collectionId}:`, error);
+            throw error;
+        }
+    }
+
     async getDocuments(databaseId, collectionId, limit = 100, offset = 0) {
         try {
+            // Use Query helper for proper pagination
+            const queries = [
+                Query.limit(limit),
+                Query.offset(offset)
+            ];
+            
             const documents = await this.databases.listDocuments(
                 databaseId,
                 collectionId,
-                undefined,
-                limit,
-                offset
+                queries
             );
+            
             return documents;
         } catch (error) {
             console.error(`Error fetching documents from collection ${collectionId}:`, error);

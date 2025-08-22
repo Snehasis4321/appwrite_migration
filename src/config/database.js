@@ -77,34 +77,34 @@ class DatabaseManager {
         const sql = {
             postgres: `
                 CREATE TABLE IF NOT EXISTS appwrite_users (
-                    id VARCHAR(255) PRIMARY KEY,
-                    name VARCHAR(255),
-                    email VARCHAR(255) UNIQUE,
-                    phone VARCHAR(50),
-                    email_verification BOOLEAN DEFAULT FALSE,
-                    phone_verification BOOLEAN DEFAULT FALSE,
-                    status BOOLEAN DEFAULT TRUE,
-                    registration TIMESTAMP,
-                    password_update TIMESTAMP,
-                    prefs JSONB,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    "id" VARCHAR(255) PRIMARY KEY,
+                    "name" VARCHAR(255),
+                    "email" VARCHAR(255) UNIQUE,
+                    "phone" VARCHAR(50),
+                    "email_verification" BOOLEAN DEFAULT FALSE,
+                    "phone_verification" BOOLEAN DEFAULT FALSE,
+                    "status" BOOLEAN DEFAULT TRUE,
+                    "registration" TIMESTAMP,
+                    "password_update" TIMESTAMP,
+                    "prefs" JSONB,
+                    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             `,
             mysql: `
                 CREATE TABLE IF NOT EXISTS appwrite_users (
-                    id VARCHAR(255) PRIMARY KEY,
-                    name VARCHAR(255),
-                    email VARCHAR(255) UNIQUE,
-                    phone VARCHAR(50),
-                    email_verification BOOLEAN DEFAULT FALSE,
-                    phone_verification BOOLEAN DEFAULT FALSE,
-                    status BOOLEAN DEFAULT TRUE,
-                    registration TIMESTAMP,
-                    password_update TIMESTAMP,
-                    prefs JSON,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    \`id\` VARCHAR(255) PRIMARY KEY,
+                    \`name\` VARCHAR(255),
+                    \`email\` VARCHAR(255) UNIQUE,
+                    \`phone\` VARCHAR(50),
+                    \`email_verification\` BOOLEAN DEFAULT FALSE,
+                    \`phone_verification\` BOOLEAN DEFAULT FALSE,
+                    \`status\` BOOLEAN DEFAULT TRUE,
+                    \`registration\` TIMESTAMP,
+                    \`password_update\` TIMESTAMP,
+                    \`prefs\` JSON,
+                    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 );
             `,
             mongodb: null
@@ -119,17 +119,81 @@ class DatabaseManager {
         }
     }
 
-    async createCollectionTable(collectionName, attributes) {
+    async createCollectionMetadataTable() {
+        const sql = {
+            postgres: `
+                CREATE TABLE IF NOT EXISTS collection_metadata (
+                    "appwrite_id" VARCHAR(255) PRIMARY KEY,
+                    "table_name" VARCHAR(255) NOT NULL,
+                    "display_name" VARCHAR(255) NOT NULL,
+                    "database_id" VARCHAR(255) NOT NULL,
+                    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `,
+            mysql: `
+                CREATE TABLE IF NOT EXISTS collection_metadata (
+                    \`appwrite_id\` VARCHAR(255) PRIMARY KEY,
+                    \`table_name\` VARCHAR(255) NOT NULL,
+                    \`display_name\` VARCHAR(255) NOT NULL,
+                    \`database_id\` VARCHAR(255) NOT NULL,
+                    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `,
+            mongodb: null
+        };
+
         if (this.type === 'mongodb') {
             const db = this.connection.db();
-            await db.createCollection(`collection_${collectionName}`);
+            await db.createCollection('collection_metadata');
+        } else {
+            await this.executeSQL(sql[this.type]);
+        }
+    }
+
+    async insertCollectionMetadata(appwriteId, tableName, displayName, databaseId) {
+        if (this.type === 'mongodb') {
+            const db = this.connection.db();
+            await db.collection('collection_metadata').insertOne({
+                appwrite_id: appwriteId,
+                table_name: tableName,
+                display_name: displayName,
+                database_id: databaseId,
+                created_at: new Date()
+            });
             return;
         }
 
-        let columns = ['id VARCHAR(255) PRIMARY KEY', 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'];
+        const fields = this.type === 'postgres' 
+            ? '"appwrite_id", "table_name", "display_name", "database_id"'
+            : '`appwrite_id`, `table_name`, `display_name`, `database_id`';
+
+        const placeholders = this.type === 'postgres' ? '$1, $2, $3, $4' : '?, ?, ?, ?';
+        const sql = `INSERT INTO collection_metadata (${fields}) VALUES (${placeholders}) ON CONFLICT (appwrite_id) DO NOTHING;`;
+        const values = [appwriteId, tableName, displayName, databaseId];
+
+        if (this.type === 'postgres') {
+            await this.connection.query(sql.replace('ON CONFLICT (appwrite_id) DO NOTHING', 'ON CONFLICT ("appwrite_id") DO NOTHING'), values);
+        } else if (this.type === 'mysql') {
+            await this.connection.execute(sql.replace('ON CONFLICT (appwrite_id) DO NOTHING', 'ON DUPLICATE KEY UPDATE appwrite_id=appwrite_id'), values);
+        }
+    }
+
+    async createCollectionTable(collectionName, attributes, collectionDisplayName = null) {
+        // Use display name if provided, otherwise use the collection ID
+        const tableName = collectionDisplayName ? 
+            this.sanitizeTableName(collectionDisplayName) : 
+            `collection_${collectionName}`;
+
+        if (this.type === 'mongodb') {
+            const db = this.connection.db();
+            await db.createCollection(tableName);
+            return tableName;
+        }
+
+        let columns = ['"id" VARCHAR(255) PRIMARY KEY', '"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP', '"updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP'];
         
         if (this.type === 'mysql') {
-            columns.push('updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+            columns = ['`id` VARCHAR(255) PRIMARY KEY', '`created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP', '`updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'];
         }
 
         for (const attr of attributes) {
@@ -139,44 +203,57 @@ class DatabaseManager {
             }
         }
 
-        const sql = `CREATE TABLE IF NOT EXISTS collection_${collectionName} (${columns.join(', ')});`;
+        const sql = `CREATE TABLE IF NOT EXISTS ${tableName} (${columns.join(', ')});`;
         await this.executeSQL(sql);
+        return tableName;
+    }
+
+    sanitizeTableName(name) {
+        // Convert to snake_case and remove special characters
+        return name
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '')
+            .substring(0, 63); // PostgreSQL table name limit
     }
 
     getColumnDefinition(attribute) {
         const { key, type, size, required } = attribute;
+        
+        // Escape column names that might be reserved keywords
+        const escapedKey = this.type === 'postgres' ? `"${key}"` : `\`${key}\``;
         let definition = '';
 
         switch (type) {
             case 'string':
-                definition = `${key} VARCHAR(${size || 255})`;
+                definition = `${escapedKey} VARCHAR(${size || 255})`;
                 break;
             case 'integer':
-                definition = `${key} ${this.type === 'postgres' ? 'INTEGER' : 'INT'}`;
+                definition = `${escapedKey} ${this.type === 'postgres' ? 'INTEGER' : 'INT'}`;
                 break;
             case 'double':
-                definition = `${key} ${this.type === 'postgres' ? 'DOUBLE PRECISION' : 'DOUBLE'}`;
+                definition = `${escapedKey} ${this.type === 'postgres' ? 'DOUBLE PRECISION' : 'DOUBLE'}`;
                 break;
             case 'boolean':
-                definition = `${key} BOOLEAN`;
+                definition = `${escapedKey} BOOLEAN`;
                 break;
             case 'datetime':
-                definition = `${key} TIMESTAMP`;
+                definition = `${escapedKey} TIMESTAMP`;
                 break;
             case 'email':
-                definition = `${key} VARCHAR(255)`;
+                definition = `${escapedKey} VARCHAR(255)`;
                 break;
             case 'url':
-                definition = `${key} TEXT`;
+                definition = `${escapedKey} TEXT`;
                 break;
             default:
-                definition = `${key} TEXT`;
+                definition = `${escapedKey} TEXT`;
         }
 
-        if (required) {
-            definition += ' NOT NULL';
-        }
-
+        // Don't add NOT NULL constraint to avoid migration issues with existing null data
+        // The required constraint can be added later if needed
+        
         return definition;
     }
 
@@ -210,23 +287,27 @@ class DatabaseManager {
         }
     }
 
-    async insertDocument(collectionName, document) {
+    async insertDocument(tableName, document) {
         if (this.type === 'mongodb') {
             const db = this.connection.db();
-            await db.collection(`collection_${collectionName}`).insertOne(document);
+            await db.collection(tableName).insertOne(document);
             return;
         }
 
-        const fields = Object.keys(document).join(', ');
+        // Escape field names for PostgreSQL and MySQL
+        const fields = Object.keys(document).map(key => 
+            this.type === 'postgres' ? `"${key}"` : `\`${key}\``
+        ).join(', ');
+        
         const placeholders = this.type === 'postgres' 
             ? Object.keys(document).map((_, i) => `$${i + 1}`).join(', ')
             : Object.keys(document).map(() => '?').join(', ');
         
-        const sql = `INSERT INTO collection_${collectionName} (${fields}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING;`;
+        const sql = `INSERT INTO ${tableName} (${fields}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING;`;
         const values = Object.values(document);
 
         if (this.type === 'postgres') {
-            await this.connection.query(sql.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO NOTHING'), values);
+            await this.connection.query(sql.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT ("id") DO NOTHING'), values);
         } else if (this.type === 'mysql') {
             await this.connection.execute(sql.replace('ON CONFLICT (id) DO NOTHING', 'ON DUPLICATE KEY UPDATE id=id'), values);
         }
