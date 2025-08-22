@@ -86,11 +86,13 @@ pnpm install
 
 ### 4. Test Connections (Recommended)
 
+Must do this checking before starting migration.
+
 ```bash
 pnpm test-connections
 ```
 
-This tests all database connections and shows which ones are ready for migration.
+This tests all database connections **and storage providers** to show which ones are ready for migration.
 
 ### 5. Run Migration
 
@@ -134,6 +136,7 @@ pnpm migrate-storage
 ```
 
 This will:
+
 1. **Analyze your collections** for file attributes
 2. **Ask for your preferred storage provider** (Cloudinary or AWS S3)
 3. **Guide you through configuration** of file fields
@@ -154,12 +157,12 @@ This will:
 
 ### ✅ Storage Migration (New!)
 
-| Storage Type | Support | Notes |
-|--------------|---------|-------|
-| **Images** | ✅ | Migrated to Cloudinary or S3 with URL updates |
-| **Documents** | ✅ | PDF, DOCX, etc. migrated to chosen provider |
-| **Videos** | ✅ | Video files migrated with processing |
-| **Any Files** | ✅ | All file types supported |
+| Storage Type  | Support | Notes                                         |
+| ------------- | ------- | --------------------------------------------- |
+| **Images**    | ✅      | Migrated to Cloudinary or S3 with URL updates |
+| **Documents** | ✅      | PDF, DOCX, etc. migrated to chosen provider   |
+| **Videos**    | ✅      | Video files migrated with processing          |
+| **Any Files** | ✅      | All file types supported                      |
 
 ### ❌ Not Migrated
 
@@ -205,6 +208,7 @@ MONGODB_DATABASE=my_custom_name
 ### Storage Migration Setup
 
 **Option 1: Cloudinary (Recommended for images/videos)**
+
 ```env
 # Cloudinary Configuration
 STORAGE_PROVIDER=cloudinary
@@ -214,6 +218,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 **Option 2: AWS S3 (Flexible file storage)**
+
 ```env
 # AWS S3 Configuration
 STORAGE_PROVIDER=s3
@@ -236,11 +241,11 @@ AWS_BUCKET_NAME=your_bucket_name
 
 #### Supported File Field Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **Single File ID** | `"507f1f77bcf86cd799439011"` | Profile pictures, documents |
-| **Array of File IDs** | `["id1", "id2", "id3"]` | Image galleries, attachments |
-| **Appwrite URLs** | `https://cloud.appwrite.io/v1/storage/buckets/bucket/files/id/view` | Full URLs to extract and migrate |
+| Type                  | Description                                                         | Example                          |
+| --------------------- | ------------------------------------------------------------------- | -------------------------------- |
+| **Single File ID**    | `"507f1f77bcf86cd799439011"`                                        | Profile pictures, documents      |
+| **Array of File IDs** | `["id1", "id2", "id3"]`                                             | Image galleries, attachments     |
+| **Appwrite URLs**     | `https://cloud.appwrite.io/v1/storage/buckets/bucket/files/id/view` | Full URLs to extract and migrate |
 
 #### Example Configuration
 
@@ -249,17 +254,17 @@ AWS_BUCKET_NAME=your_bucket_name
   "collections": [
     {
       "name": "user_profiles",
-      "tableName": "user_profiles", 
+      "tableName": "user_profiles",
       "bucketId": "user_uploads",
-      "cloudinaryFolder": "users",                    // For Cloudinary
-      "s3Folder": "users",                         // For AWS S3
+      "cloudinaryFolder": "users", // For Cloudinary
+      "s3Folder": "users", // For AWS S3
       "fileAttributes": [
         {
           "field": "avatar",
           "type": "single"
         },
         {
-          "field": "gallery", 
+          "field": "gallery",
           "type": "array",
           "returnType": "json"
         }
@@ -320,11 +325,7 @@ GRANT ALL PRIVILEGES ON your_db.* TO 'your_user'@'%';
      "Statement": [
        {
          "Effect": "Allow",
-         "Action": [
-           "s3:PutObject",
-           "s3:GetObject",
-           "s3:DeleteObject"
-         ],
+         "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
          "Resource": "arn:aws:s3:::your-bucket-name/*"
        }
      ]

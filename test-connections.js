@@ -1,17 +1,21 @@
 import AppwriteClient from './src/config/appwrite.js';
 import DatabaseManager from './src/config/database.js';
+import { v2 as cloudinary } from 'cloudinary';
+import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 async function testConnections() {
-    console.log('🔍 Testing all database connections...\n');
+    console.log('🔍 Testing all connections...\n');
 
     const results = {
         appwrite: false,
         postgres: false,
         mysql: false,
-        mongodb: false
+        mongodb: false,
+        cloudinary: false,
+        s3: false
     };
 
     // Test Appwrite
@@ -60,26 +64,105 @@ async function testConnections() {
         console.log('❌ MongoDB connection failed:', error.message);
     }
 
+    // Test Cloudinary
+    console.log('\n5. Testing Cloudinary connection...');
+    try {
+        await testCloudinaryConnection();
+        results.cloudinary = true;
+        console.log('✅ Cloudinary connection successful');
+    } catch (error) {
+        console.log('❌ Cloudinary connection failed:', error.message);
+    }
+
+    // Test AWS S3
+    console.log('\n6. Testing AWS S3 connection...');
+    try {
+        await testS3Connection();
+        results.s3 = true;
+        console.log('✅ AWS S3 connection successful');
+    } catch (error) {
+        console.log('❌ AWS S3 connection failed:', error.message);
+    }
+
     // Summary
-    const connectedCount = Object.values(results).filter(Boolean).length;
-    console.log('\n' + '='.repeat(50));
-    console.log('📊 CONNECTION TEST SUMMARY');
-    console.log('='.repeat(50));
-    console.log(`Appwrite:    ${results.appwrite ? '✅ Connected' : '❌ Failed'}`);
-    console.log(`PostgreSQL:  ${results.postgres ? '✅ Connected' : '❌ Failed'}`);
-    console.log(`MySQL:       ${results.mysql ? '✅ Connected' : '❌ Failed'}`);
-    console.log(`MongoDB:     ${results.mongodb ? '✅ Connected' : '❌ Failed'}`);
-    console.log('='.repeat(50));
-    console.log(`🎯 ${connectedCount}/4 databases connected successfully\n`);
+    const dbCount = [results.appwrite, results.postgres, results.mysql, results.mongodb].filter(Boolean).length;
+    const storageCount = [results.cloudinary, results.s3].filter(Boolean).length;
+    const totalCount = Object.values(results).filter(Boolean).length;
     
-    if (connectedCount > 1) {
-        console.log('✅ Ready to migrate! You can choose any connected database.');
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 CONNECTION TEST SUMMARY');
+    console.log('='.repeat(60));
+    console.log('DATABASE CONNECTIONS:');
+    console.log(`  Appwrite:    ${results.appwrite ? '✅ Connected' : '❌ Failed'}`);
+    console.log(`  PostgreSQL:  ${results.postgres ? '✅ Connected' : '❌ Failed'}`);
+    console.log(`  MySQL:       ${results.mysql ? '✅ Connected' : '❌ Failed'}`);
+    console.log(`  MongoDB:     ${results.mongodb ? '✅ Connected' : '❌ Failed'}`);
+    console.log('\nSTORAGE CONNECTIONS:');
+    console.log(`  Cloudinary:  ${results.cloudinary ? '✅ Connected' : '❌ Failed'}`);
+    console.log(`  AWS S3:      ${results.s3 ? '✅ Connected' : '❌ Failed'}`);
+    console.log('='.repeat(60));
+    console.log(`🎯 ${dbCount}/4 databases | ${storageCount}/2 storage providers | ${totalCount}/6 total\n`);
+    
+    if (dbCount > 1 && storageCount > 0) {
+        console.log('✅ Ready to migrate with storage! All systems connected.');
+        console.log('📝 Set TARGET_DATABASE and STORAGE_PROVIDER in .env.');
+    } else if (dbCount > 1) {
+        console.log('✅ Ready for database migration!');
+        console.log('⚠️  No storage providers connected - storage migration unavailable.');
         console.log('📝 Set TARGET_DATABASE in .env to your preferred choice.');
-    } else if (connectedCount === 1) {
+    } else if (dbCount === 1) {
         console.log('⚠️  Only one database connected. Consider adding more options.');
     } else {
         console.log('❌ No databases connected. Please check your configuration.');
     }
+}
+
+async function testCloudinaryConnection() {
+    // Configure Cloudinary
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    });
+
+    // Check if config is present
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+        throw new Error('Missing Cloudinary credentials in .env file');
+    }
+
+    // Test by calling the ping API
+    return new Promise((resolve, reject) => {
+        cloudinary.api.ping((error, result) => {
+            if (error) {
+                reject(new Error(`Cloudinary API error: ${error.message}`));
+            } else {
+                resolve(result);
+            }
+        });
+    });
+}
+
+async function testS3Connection() {
+    // Check if config is present
+    if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_BUCKET_NAME) {
+        throw new Error('Missing AWS S3 credentials in .env file');
+    }
+
+    // Configure S3 client
+    const s3Client = new S3Client({
+        region: process.env.AWS_REGION,
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+        }
+    });
+
+    // Test by checking if bucket exists and is accessible
+    const command = new HeadBucketCommand({
+        Bucket: process.env.AWS_BUCKET_NAME
+    });
+
+    await s3Client.send(command);
 }
 
 testConnections();

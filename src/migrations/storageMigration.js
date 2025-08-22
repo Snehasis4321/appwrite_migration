@@ -1,7 +1,7 @@
 import AppwriteClient from '../config/appwrite.js';
 import DatabaseManager from '../config/database.js';
 import { v2 as cloudinary } from 'cloudinary';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import fetch from 'node-fetch';
 import path from 'path';
 
@@ -36,7 +36,7 @@ class StorageMigration {
         try {
             console.log('🗂️ Starting storage migration...');
             
-            // Validate storage provider config
+            // Validate and test storage provider config
             if (!this.validateStorageConfig()) {
                 if (this.storageProvider === 'cloudinary') {
                     throw new Error('Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET');
@@ -44,6 +44,11 @@ class StorageMigration {
                     throw new Error('AWS S3 configuration missing. Please set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_BUCKET_NAME');
                 }
             }
+
+            // Test storage connection before proceeding
+            console.log(`🔍 Testing ${this.storageProvider} connection...`);
+            await this.testStorageConnection();
+            console.log(`✅ ${this.storageProvider} connection successful`);
 
             await this.targetDb.connect();
 
@@ -320,6 +325,39 @@ class StorageMigration {
             '.wav': 'audio/wav'
         };
         return mimeTypes[ext] || 'application/octet-stream';
+    }
+
+    async testStorageConnection() {
+        if (this.storageProvider === 'cloudinary') {
+            return await this.testCloudinaryConnection();
+        } else if (this.storageProvider === 's3') {
+            return await this.testS3Connection();
+        }
+        throw new Error(`Unsupported storage provider: ${this.storageProvider}`);
+    }
+
+    async testCloudinaryConnection() {
+        return new Promise((resolve, reject) => {
+            cloudinary.api.ping((error, result) => {
+                if (error) {
+                    reject(new Error(`Cloudinary API error: ${error.message}`));
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    }
+
+    async testS3Connection() {
+        try {
+            const command = new HeadBucketCommand({
+                Bucket: process.env.AWS_BUCKET_NAME
+            });
+
+            await this.s3Client.send(command);
+        } catch (error) {
+            throw new Error(`S3 connection failed: ${error.message}`);
+        }
     }
 }
 
