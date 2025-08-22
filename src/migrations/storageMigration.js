@@ -84,7 +84,7 @@ class StorageMigration {
     }
 
     async migrateCollectionFiles(collectionConfig) {
-        const { name, databaseId, collectionId, fileAttributes, tableName } = collectionConfig;
+        const { name, databaseId, collectionId, fileAttributes, tableName, bucketId } = collectionConfig;
         
         let filesTransferred = 0;
         let documentsUpdated = 0;
@@ -108,7 +108,9 @@ class StorageMigration {
                     const fileValue = document[attr.field];
                     
                     if (fileValue) {
-                        const newUrl = await this.processFileField(fileValue, attr);
+                        // Add bucket ID to attribute config for file processing
+                        const attrWithBucket = { ...attr, bucketId: bucketId };
+                        const newUrl = await this.processFileField(fileValue, attrWithBucket);
                         if (newUrl && newUrl !== fileValue) {
                             updates[attr.field] = newUrl;
                             hasUpdates = true;
@@ -170,11 +172,15 @@ class StorageMigration {
         try {
             console.log(`      📄 Migrating file: ${fileId}`);
 
+            // Get file metadata first to get original filename and extension
+            const fileMetadata = await this.getFileMetadata(fileId, attributeConfig.bucketId);
+            console.log(`        📋 File info: ${fileMetadata.name} (${fileMetadata.mimeType})`);
+
             // Download file from Appwrite
             const fileBuffer = await this.downloadFromAppwrite(fileId, attributeConfig.bucketId);
             
-            // Upload to storage provider
-            const newUrl = await this.uploadToStorageProvider(fileBuffer, fileId, attributeConfig);
+            // Upload to storage provider with proper filename
+            const newUrl = await this.uploadToStorageProvider(fileBuffer, fileId, attributeConfig, fileMetadata);
             
             // Cache the result
             this.migratedFiles.set(fileId, newUrl);
@@ -188,20 +194,41 @@ class StorageMigration {
         }
     }
 
+    async getFileMetadata(fileId, bucketId) {
+        try {
+            // Use Appwrite SDK to get file metadata
+            const file = await this.appwrite.storage.getFile(bucketId, fileId);
+            return {
+                name: file.name,
+                mimeType: file.mimeType,
+                size: file.sizeOriginal
+            };
+        } catch (error) {
+            console.warn(`        ⚠️  Could not get file metadata for ${fileId}, using fallback`);
+            // Fallback: try to determine from file content or use generic name
+            return {
+                name: `${fileId}.bin`, // Generic fallback
+                mimeType: 'application/octet-stream',
+                size: 0
+            };
+        }
+    }
+
     async downloadFromAppwrite(fileId, bucketId) {
         try {
-            // Get file download URL from Appwrite
-            const downloadUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/download`;
+            // Use view endpoint with project and mode parameters for admin access
+            const downloadUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${process.env.APPWRITE_PROJECT_ID}&mode=admin`;
+            
+            console.log(`        📥 Downloading from: ${downloadUrl}`);
             
             const response = await fetch(downloadUrl, {
                 headers: {
-                    'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
                     'X-Appwrite-Key': process.env.APPWRITE_API_KEY
                 }
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to download file: ${response.statusText}`);
+                throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
             }
 
             return await response.buffer();
@@ -210,20 +237,24 @@ class StorageMigration {
         }
     }
 
-    async uploadToStorageProvider(fileBuffer, fileId, attributeConfig) {
+    async uploadToStorageProvider(fileBuffer, fileId, attributeConfig, fileMetadata) {
         if (this.storageProvider === 'cloudinary') {
-            return await this.uploadToCloudinary(fileBuffer, fileId, attributeConfig);
+            return await this.uploadToCloudinary(fileBuffer, fileId, attributeConfig, fileMetadata);
         } else if (this.storageProvider === 's3') {
-            return await this.uploadToS3(fileBuffer, fileId, attributeConfig);
+            return await this.uploadToS3(fileBuffer, fileId, attributeConfig, fileMetadata);
         }
         throw new Error(`Unsupported storage provider: ${this.storageProvider}`);
     }
 
-    async uploadToCloudinary(fileBuffer, fileId, attributeConfig) {
+    async uploadToCloudinary(fileBuffer, fileId, attributeConfig, fileMetadata) {
         return new Promise((resolve, reject) => {
+            // Use original filename without extension as public_id, let Cloudinary handle the format
+            const baseFilename = fileMetadata.name.replace(/\.[^/.]+$/, "") || fileId;
+            const folderPrefix = process.env.STORAGE_FOLDER_PREFIX || 'appwrite_migration';
+            
             const options = {
-                public_id: `appwrite_migration/${fileId}`,
-                folder: attributeConfig.cloudinaryFolder || 'appwrite_migration',
+                public_id: `${folderPrefix}/${baseFilename}`,
+                folder: attributeConfig.cloudinaryFolder || folderPrefix,
                 resource_type: 'auto', // Handles images, videos, and other files
                 ...attributeConfig.cloudinaryOptions || {}
             };
@@ -238,15 +269,18 @@ class StorageMigration {
         });
     }
 
-    async uploadToS3(fileBuffer, fileId, attributeConfig) {
+    async uploadToS3(fileBuffer, fileId, attributeConfig, fileMetadata) {
         try {
-            const key = `${attributeConfig.s3Folder || 'appwrite_migration'}/${fileId}`;
+            // Use original filename with proper extension
+            const filename = fileMetadata.name || `${fileId}.bin`;
+            const folderPrefix = process.env.STORAGE_FOLDER_PREFIX || 'appwrite_migration';
+            const key = `${attributeConfig.s3Folder || folderPrefix}/${filename}`;
             
             const command = new PutObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME,
                 Key: key,
                 Body: fileBuffer,
-                ContentType: this.getContentType(fileId),
+                ContentType: fileMetadata.mimeType || this.getContentType(filename),
                 ...attributeConfig.s3Options || {}
             });
 
@@ -255,7 +289,7 @@ class StorageMigration {
             // Return the S3 URL
             const region = process.env.AWS_REGION;
             const bucket = process.env.AWS_BUCKET_NAME;
-            return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+            return `https://${bucket}.s3.${region}.amazonaws.com/${encodeURIComponent(key)}`;
             
         } catch (error) {
             throw new Error(`S3 upload failed: ${error.message}`);

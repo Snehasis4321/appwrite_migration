@@ -1,4 +1,4 @@
-import { Client, Databases, Users, Account, Query } from 'node-appwrite';
+import { Client, Databases, Users, Account, Storage, Query } from 'node-appwrite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,6 +14,7 @@ class AppwriteClient {
         this.databases = new Databases(this.client);
         this.users = new Users(this.client);
         this.account = new Account(this.client);
+        this.storage = new Storage(this.client);
     }
 
     async testConnection() {

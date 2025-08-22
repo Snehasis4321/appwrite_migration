@@ -104,9 +104,10 @@ class StorageConfigGenerator {
             `What is the Appwrite Storage Bucket ID for this collection? `
         );
 
+        const folderPrefix = process.env.STORAGE_FOLDER_PREFIX || 'appwrite_migration';
         const storageFolder = await this.askQuestion(
-            `Storage folder name (press Enter for 'appwrite_migration/${collection.name}'): `
-        ) || `appwrite_migration/${collection.name}`;
+            `Storage folder name (press Enter for '${folderPrefix}/${collection.name}'): `
+        ) || `${folderPrefix}/${collection.name}`;
 
         const collectionConfig = {
             name: collection.name,

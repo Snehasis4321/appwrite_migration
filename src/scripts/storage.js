@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import StorageMigration from '../migrations/storageMigration.js';
 import StorageConfigGenerator from '../utils/storageConfigGenerator.js';
 import fs from 'fs';
+import readline from 'readline';
 
 dotenv.config();
 
@@ -77,7 +78,6 @@ async function generateNewConfig() {
 
 function askYesNo(question) {
     return new Promise((resolve) => {
-        const readline = require('readline');
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
