@@ -31,10 +31,14 @@ class DatabaseManager {
                 case 'mysql':
                     this.connection = await mysql.createConnection({
                         host: process.env.MYSQL_HOST,
-                        port: process.env.MYSQL_PORT,
+                        port: parseInt(process.env.MYSQL_PORT),
                         database: process.env.MYSQL_DATABASE,
                         user: process.env.MYSQL_USERNAME,
                         password: process.env.MYSQL_PASSWORD,
+                        connectTimeout: 30000, // 30 seconds
+                        ssl: {
+                            rejectUnauthorized: false
+                        }
                     });
                     await this.connection.execute('SELECT 1');
                     console.log('✅ Connected to MySQL');
@@ -227,7 +231,12 @@ class DatabaseManager {
 
         switch (type) {
             case 'string':
-                definition = `${escapedKey} VARCHAR(${size || 255})`;
+                // Handle MySQL VARCHAR size limitations
+                if (this.type === 'mysql' && size && size > 16383) {
+                    definition = `${escapedKey} TEXT`;
+                } else {
+                    definition = `${escapedKey} VARCHAR(${size || 255})`;
+                }
                 break;
             case 'integer':
                 definition = `${escapedKey} ${this.type === 'postgres' ? 'INTEGER' : 'INT'}`;
