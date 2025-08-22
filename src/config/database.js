@@ -23,6 +23,9 @@ class DatabaseManager {
                         database: process.env.POSTGRES_DATABASE,
                         user: process.env.POSTGRES_USERNAME,
                         password: process.env.POSTGRES_PASSWORD,
+                        connectionTimeoutMillis: 30000, // 30 seconds
+                        idleTimeoutMillis: 30000,
+                        query_timeout: 30000
                     });
                     await this.connection.query('SELECT NOW()');
                     console.log('✅ Connected to PostgreSQL');
@@ -35,7 +38,7 @@ class DatabaseManager {
                         database: process.env.MYSQL_DATABASE,
                         user: process.env.MYSQL_USERNAME,
                         password: process.env.MYSQL_PASSWORD,
-                        connectTimeout: 30000, // 30 seconds
+                        connectTimeout: 30000, // 30 seconds - valid option
                         ssl: {
                             rejectUnauthorized: false
                         }
@@ -45,7 +48,13 @@ class DatabaseManager {
                     break;
 
                 case 'mongodb':
-                    this.connection = new MongoClient(process.env.MONGODB_URI);
+                    this.connection = new MongoClient(process.env.MONGODB_URI, {
+                        serverSelectionTimeoutMS: 30000, // 30 seconds
+                        connectTimeoutMS: 30000,
+                        socketTimeoutMS: 30000,
+                        retryWrites: true,
+                        w: 'majority'
+                    });
                     await this.connection.connect();
                     await this.connection.db().admin().ping();
                     console.log('✅ Connected to MongoDB');
@@ -115,7 +124,7 @@ class DatabaseManager {
         };
 
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.createCollection('appwrite_users');
             await db.collection('appwrite_users').createIndex({ email: 1 }, { unique: true });
         } else {
@@ -147,7 +156,7 @@ class DatabaseManager {
         };
 
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.createCollection('collection_metadata');
         } else {
             await this.executeSQL(sql[this.type]);
@@ -156,7 +165,7 @@ class DatabaseManager {
 
     async insertCollectionMetadata(appwriteId, tableName, displayName, databaseId) {
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.collection('collection_metadata').insertOne({
                 appwrite_id: appwriteId,
                 table_name: tableName,
@@ -189,7 +198,7 @@ class DatabaseManager {
             `collection_${collectionName}`;
 
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.createCollection(tableName);
             return tableName;
         }
@@ -276,7 +285,7 @@ class DatabaseManager {
 
     async insertUser(user) {
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.collection('appwrite_users').insertOne(user);
             return;
         }
@@ -298,7 +307,7 @@ class DatabaseManager {
 
     async insertDocument(tableName, document) {
         if (this.type === 'mongodb') {
-            const db = this.connection.db();
+            const db = this.connection.db(process.env.MONGODB_DATABASE || 'appwrite_migration');
             await db.collection(tableName).insertOne(document);
             return;
         }
