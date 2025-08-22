@@ -50,8 +50,17 @@ class DatabaseMigration {
         try {
             const attributes = await this.appwrite.getAttributes(databaseId, collection.$id);
             console.log(`      🏷️  Found ${attributes.length} attributes in collection ${collection.name}`);
+            
+            // Detect relationship fields by scanning a sample of documents
+            const relationshipFields = await this.detectRelationshipFields(databaseId, collection.$id);
+            if (relationshipFields.length > 0) {
+                console.log(`      🔗 Found ${relationshipFields.length} relationship fields:`, relationshipFields.map(f => f.key));
+            }
 
-            const tableName = await this.targetDb.createCollectionTable(collection.$id, attributes, collection.name);
+            // Combine regular attributes with relationship fields
+            const allAttributes = [...attributes, ...relationshipFields];
+
+            const tableName = await this.targetDb.createCollectionTable(collection.$id, allAttributes, collection.name);
             
             // Store collection metadata for reference
             await this.targetDb.insertCollectionMetadata(collection.$id, tableName, collection.name, databaseId);
@@ -129,6 +138,14 @@ class DatabaseMigration {
             if (!key.startsWith('$') && key !== 'id') {
                 if (value === null || value === undefined) {
                     transformed[key] = null;
+                } else if (this.isRelationshipField(key, value)) {
+                    // Handle relationship fields - store as JSON for SQL, native for MongoDB
+                    if (this.targetDb.type === 'mongodb') {
+                        transformed[key] = value; // MongoDB can handle arrays natively
+                    } else {
+                        // SQL databases - serialize as JSON
+                        transformed[key] = JSON.stringify(value);
+                    }
                 } else if (typeof value === 'object') {
                     transformed[key] = JSON.stringify(value);
                 } else {
@@ -138,6 +155,79 @@ class DatabaseMigration {
         }
 
         return transformed;
+    }
+
+    async detectRelationshipFields(databaseId, collectionId) {
+        try {
+            // Sample a few documents to detect relationship fields
+            const sampleResponse = await this.appwrite.getDocuments(databaseId, collectionId, 10, 0);
+            const sampleDocuments = sampleResponse.documents;
+
+            if (sampleDocuments.length === 0) {
+                return [];
+            }
+
+            const relationshipFields = new Set();
+
+            // Look for fields that appear to be relationship IDs
+            for (const document of sampleDocuments) {
+                for (const [key, value] of Object.entries(document)) {
+                    // Skip system fields and known attribute fields
+                    if (key.startsWith('$')) continue;
+
+
+                    // Check if this looks like a relationship field
+                    if (this.isRelationshipField(key, value)) {
+                        relationshipFields.add(key);
+                    }
+                }
+            }
+
+            // Convert to attribute-like objects for table creation
+            return Array.from(relationshipFields).map(fieldKey => ({
+                key: fieldKey,
+                type: 'relationship',
+                // For SQL databases, we'll store as TEXT to handle arrays and single values
+                sqlType: 'TEXT',
+                size: null,
+                required: false,
+                array: false
+            }));
+
+        } catch (error) {
+            console.error(`Error detecting relationship fields for collection ${collectionId}:`, error);
+            return [];
+        }
+    }
+
+    isRelationshipField(key, value) {
+        // Relationship fields typically:
+        // 1. Have keys that look like collection IDs (24-character hex strings)
+        // 2. Have values that are either:
+        //    - Single document ID strings
+        //    - Arrays of document ID strings
+        //    - null/undefined
+
+        // Check if key looks like a collection ID (20 character hex for Appwrite)
+        const isCollectionIdKey = /^[0-9a-f]{20}$/.test(key);
+        
+        
+        if (!isCollectionIdKey) return false;
+
+        // Check if value looks like relationship data
+        if (value === null || value === undefined) return true;
+
+        if (typeof value === 'string') {
+            // Single relationship - check if it looks like a document ID (20 chars for Appwrite)
+            return /^[0-9a-f]{20}$/.test(value);
+        }
+
+        if (Array.isArray(value)) {
+            // Array relationship - check if all items look like document IDs
+            return value.every(item => typeof item === 'string' && /^[0-9a-f]{20}$/.test(item));
+        }
+
+        return false;
     }
 }
 

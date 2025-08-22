@@ -265,6 +265,10 @@ class DatabaseManager {
             case 'url':
                 definition = `${escapedKey} TEXT`;
                 break;
+            case 'relationship':
+                // Relationships are stored as TEXT to handle both single values and arrays
+                definition = `${escapedKey} TEXT`;
+                break;
             default:
                 definition = `${escapedKey} TEXT`;
         }

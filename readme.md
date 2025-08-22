@@ -153,6 +153,7 @@ This will:
 | **Users**       | ✅         | ✅    | ✅      | Complete user profiles, auth data    |
 | **Collections** | ✅         | ✅    | ✅      | Schema, attributes, constraints      |
 | **Documents**   | ✅         | ✅    | ✅      | All document data with relationships |
+| **Relationships** | ✅         | ✅    | ✅      | Auto-detected and migrated as JSON/TEXT |
 | **Metadata**    | ✅         | ✅    | ✅      | Collection mapping and timestamps    |
 
 ### ✅ Storage Migration (New!)
@@ -163,6 +164,19 @@ This will:
 | **Documents** | ✅      | PDF, DOCX, etc. migrated to chosen provider   |
 | **Videos**    | ✅      | Video files migrated with processing          |
 | **Any Files** | ✅      | All file types supported                      |
+
+### 🔗 Relationship Handling
+
+The migration tool **automatically detects and migrates Appwrite relationships**:
+
+- **Auto-Detection**: Scans documents to find relationship fields (collection IDs as keys)
+- **SQL Databases**: Relationships stored as TEXT/JSON for compatibility
+- **MongoDB**: Relationships preserved in native format (arrays, objects)
+- **Data Preservation**: All relationship data migrated without loss
+
+**Example**: A relationship like `"661bf8e58d36ea134982": ["user1", "user2"]` becomes:
+- **PostgreSQL/MySQL**: `{"661bf8e58d36ea134982": "[\"user1\", \"user2\"]"}` (JSON string)
+- **MongoDB**: `{"661bf8e58d36ea134982": ["user1", "user2"]}` (native array)
 
 ### ❌ Not Migrated
 

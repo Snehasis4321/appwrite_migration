@@ -1,0 +1,65 @@
+{
+  "storageProvider": "s3",
+  "collections": [
+    {
+      "name": "users",
+      "databaseId": "661bf83063f64967bfb2",
+      "collectionId": "661bf84907e7ada89738",
+      "tableName": "users",
+      "bucketId": "662c8d33003c200790bb",
+      "fileAttributes": [
+        {
+          "field": "profile_pic",
+          "type": "single",
+          "bucketId": null
+        }
+      ],
+      "s3Folder": "profile-pics"
+    },
+    {
+      "name": "chats",
+      "databaseId": "661bf83063f64967bfb2",
+      "collectionId": "661bf8e58d36ea134982",
+      "tableName": "chats",
+      "bucketId": "662c8d33003c200790bb",
+      "fileAttributes": [
+        {
+          "field": "message",
+          "type": "single",
+          "bucketId": null
+        }
+      ],
+      "s3Folder": "messages-pics"
+    },
+    {
+      "name": "groups",
+      "databaseId": "661bf83063f64967bfb2",
+      "collectionId": "66f1bd380000f4467f57",
+      "tableName": "groups",
+      "bucketId": "662c8d33003c200790bb",
+      "fileAttributes": [
+        {
+          "field": "image",
+          "type": "single",
+          "bucketId": null
+        }
+      ],
+      "s3Folder": "groups-pics"
+    },
+    {
+      "name": "group_messages",
+      "databaseId": "661bf83063f64967bfb2",
+      "collectionId": "66f1bdbf001417102c27",
+      "tableName": "group_messages",
+      "bucketId": "662c8d33003c200790bb",
+      "fileAttributes": [
+        {
+          "field": "message",
+          "type": "single",
+          "bucketId": null
+        }
+      ],
+      "s3Folder": "group-msg-pics"
+    }
+  ]
+}
