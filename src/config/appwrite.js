@@ -1,0 +1,87 @@
+import { Client, Databases, Users, Account } from 'node-appwrite';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+class AppwriteClient {
+    constructor() {
+        this.client = new Client();
+        this.client
+            .setEndpoint(process.env.APPWRITE_ENDPOINT)
+            .setProject(process.env.APPWRITE_PROJECT_ID)
+            .setKey(process.env.APPWRITE_API_KEY);
+
+        this.databases = new Databases(this.client);
+        this.users = new Users(this.client);
+        this.account = new Account(this.client);
+    }
+
+    async testConnection() {
+        try {
+            const project = await this.client.getProject();
+            console.log('✅ Connected to Appwrite project:', project.name);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to connect to Appwrite:', error.message);
+            return false;
+        }
+    }
+
+    async getAllDatabases() {
+        try {
+            const databases = await this.databases.list();
+            return databases.databases;
+        } catch (error) {
+            console.error('Error fetching databases:', error);
+            throw error;
+        }
+    }
+
+    async getCollections(databaseId) {
+        try {
+            const collections = await this.databases.listCollections(databaseId);
+            return collections.collections;
+        } catch (error) {
+            console.error(`Error fetching collections for database ${databaseId}:`, error);
+            throw error;
+        }
+    }
+
+    async getAttributes(databaseId, collectionId) {
+        try {
+            const attributes = await this.databases.listAttributes(databaseId, collectionId);
+            return attributes.attributes;
+        } catch (error) {
+            console.error(`Error fetching attributes for collection ${collectionId}:`, error);
+            throw error;
+        }
+    }
+
+    async getDocuments(databaseId, collectionId, limit = 100, offset = 0) {
+        try {
+            const documents = await this.databases.listDocuments(
+                databaseId,
+                collectionId,
+                undefined,
+                limit,
+                offset
+            );
+            return documents;
+        } catch (error) {
+            console.error(`Error fetching documents from collection ${collectionId}:`, error);
+            throw error;
+        }
+    }
+
+    async getAllUsers(limit = 100, offset = 0) {
+        try {
+            const users = await this.users.list(undefined, limit, offset);
+            return users;
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            throw error;
+        }
+    }
+}
+
+export default AppwriteClient;

@@ -1,0 +1,25 @@
+{
+  "name": "appwrite-migration",
+  "version": "1.0.0",
+  "description": "Migration tool for Appwrite data to PostgreSQL, MySQL, and MongoDB",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node src/migrate.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["appwrite", "migration", "database"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "node-appwrite": "^13.0.0",
+    "pg": "^8.11.3",
+    "mysql2": "^3.6.5",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9"
+  }
+}
