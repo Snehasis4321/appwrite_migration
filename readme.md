@@ -55,6 +55,10 @@ TARGET_DATABASE=postgres   # if you want postgres
 TARGET_DATABASE=mysql      # if you want mysql
 TARGET_DATABASE=mongodb    # if you want mongodb
 
+# Storage Migration Provider (choose one)
+STORAGE_PROVIDER=cloudinary  # recommended for images/videos
+# STORAGE_PROVIDER=s3        # flexible file storage
+
 # Database Configuration
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
@@ -117,6 +121,26 @@ node src/scripts/mongodb.js
 pnpm migrate
 ```
 
+### 6. Migrate Storage (Optional)
+
+If you have images, documents, or other files:
+
+```bash
+# Install additional dependencies
+pnpm install
+
+# Configure and run storage migration
+pnpm migrate-storage
+```
+
+This will:
+1. **Analyze your collections** for file attributes
+2. **Ask for your preferred storage provider** (Cloudinary or AWS S3)
+3. **Guide you through configuration** of file fields
+4. **Download files from Appwrite** storage
+5. **Upload to your chosen storage provider** with organized folders
+6. **Update database URLs** to point to new storage location
+
 ## 📊 What Gets Migrated
 
 ### ✅ Fully Supported
@@ -128,9 +152,17 @@ pnpm migrate
 | **Documents**   | ✅         | ✅    | ✅      | All document data with relationships |
 | **Metadata**    | ✅         | ✅    | ✅      | Collection mapping and timestamps    |
 
+### ✅ Storage Migration (New!)
+
+| Storage Type | Support | Notes |
+|--------------|---------|-------|
+| **Images** | ✅ | Migrated to Cloudinary or S3 with URL updates |
+| **Documents** | ✅ | PDF, DOCX, etc. migrated to chosen provider |
+| **Videos** | ✅ | Video files migrated with processing |
+| **Any Files** | ✅ | All file types supported |
+
 ### ❌ Not Migrated
 
-- **File Storage** - Use cloud storage (AWS S3, Cloudinary)
 - **Functions** - Reimplement in your new stack
 - **Real-time** - Set up with your database
 - **API Keys** - Generate new ones for your system
@@ -168,6 +200,73 @@ POSTGRES_DATABASE=my_custom_name
 
 # MongoDB can override database name
 MONGODB_DATABASE=my_custom_name
+```
+
+### Storage Migration Setup
+
+**Option 1: Cloudinary (Recommended for images/videos)**
+```env
+# Cloudinary Configuration
+STORAGE_PROVIDER=cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+**Option 2: AWS S3 (Flexible file storage)**
+```env
+# AWS S3 Configuration
+STORAGE_PROVIDER=s3
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_BUCKET_NAME=your_bucket_name
+```
+
+#### Storage Migration Process
+
+1. **Run Storage Migration**: `pnpm migrate-storage`
+2. **Interactive Configuration**: The tool will:
+   - Scan your collections for file attributes
+   - Ask which fields contain file IDs or URLs
+   - Configure Cloudinary folder structure
+   - Create a `storage-config.json` file
+3. **File Transfer**: Downloads from Appwrite → Uploads to Cloudinary
+4. **URL Updates**: Updates your database with new Cloudinary URLs
+
+#### Supported File Field Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Single File ID** | `"507f1f77bcf86cd799439011"` | Profile pictures, documents |
+| **Array of File IDs** | `["id1", "id2", "id3"]` | Image galleries, attachments |
+| **Appwrite URLs** | `https://cloud.appwrite.io/v1/storage/buckets/bucket/files/id/view` | Full URLs to extract and migrate |
+
+#### Example Configuration
+
+```json
+{
+  "collections": [
+    {
+      "name": "user_profiles",
+      "tableName": "user_profiles", 
+      "bucketId": "user_uploads",
+      "cloudinaryFolder": "users",                    // For Cloudinary
+      "s3Folder": "users",                         // For AWS S3
+      "fileAttributes": [
+        {
+          "field": "avatar",
+          "type": "single"
+        },
+        {
+          "field": "gallery", 
+          "type": "array",
+          "returnType": "json"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Connection Timeouts
@@ -210,6 +309,29 @@ GRANT ALL PRIVILEGES ON your_db.* TO 'your_user'@'%';
 1. Go to Network Access in MongoDB Atlas
 2. Add your current IP address
 3. Or add `0.0.0.0/0` for testing (less secure)
+
+**AWS S3 Setup:**
+
+1. Create an S3 bucket in your preferred region
+2. Create IAM user with S3 permissions:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:PutObject",
+           "s3:GetObject",
+           "s3:DeleteObject"
+         ],
+         "Resource": "arn:aws:s3:::your-bucket-name/*"
+       }
+     ]
+   }
+   ```
+3. Get access key ID and secret access key
+4. Set bucket to public read if you want direct file access
 
 ### Data Validation
 
@@ -325,7 +447,8 @@ Having issues? Here's how to get help:
 2. **Run connection tests**: `pnpm test-connections`
 3. **Review migration logs** for specific error messages
 4. **Ensure prerequisites** are met for your target database
-5. **Open an issue** if you find a bug
+5. **Check AWS S3 permissions** if using S3 storage
+6. **Open an issue** if you find a bug
 
 ---
 

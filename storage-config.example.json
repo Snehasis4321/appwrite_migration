@@ -1,0 +1,61 @@
+{
+  "collections": [
+    {
+      "name": "user_profiles",
+      "databaseId": "66166c1c6ac54769e427",
+      "collectionId": "66166e51df53c84e811e",
+      "tableName": "user_profiles",
+      "bucketId": "user_uploads",
+      "cloudinaryFolder": "appwrite_migration/user_profiles",
+      "fileAttributes": [
+        {
+          "field": "avatar",
+          "type": "single",
+          "description": "Single profile picture file ID"
+        },
+        {
+          "field": "gallery",
+          "type": "array",
+          "returnType": "json",
+          "description": "Array of image file IDs stored as JSON string"
+        }
+      ]
+    },
+    {
+      "name": "blog_posts",
+      "databaseId": "66166c1c6ac54769e427", 
+      "collectionId": "661671c8dba90a1c011a",
+      "tableName": "blog_posts",
+      "bucketId": "blog_content",
+      "cloudinaryFolder": "appwrite_migration/blog_posts",
+      "fileAttributes": [
+        {
+          "field": "featured_image_url",
+          "type": "url_extract",
+          "description": "Full Appwrite URL - extract file ID and migrate"
+        },
+        {
+          "field": "attachments",
+          "type": "array",
+          "returnType": "array",
+          "description": "Array of file IDs returned as array"
+        }
+      ]
+    }
+  ]
+}
+
+// Configuration Options Explained:
+//
+// Field Types:
+// - "single": Single file ID string
+// - "array": Array of file IDs  
+// - "url_extract": Full Appwrite URL (extracts file ID)
+//
+// Return Types (for arrays):
+// - "json": Return as JSON string
+// - "array": Return as array (MongoDB native)
+//
+// Cloudinary Options:
+// - cloudinaryFolder: Organize files in Cloudinary
+// - cloudinaryOptions: Additional Cloudinary upload options
