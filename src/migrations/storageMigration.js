@@ -121,7 +121,8 @@ class StorageMigration {
 
                 // Update document in target database if there are changes
                 if (hasUpdates) {
-                    await this.updateDocumentUrls(tableName, document.id, updates);
+                    const docId = document.$id || document.id;
+                    await this.updateDocumentUrls(tableName, docId, updates);
                     documentsUpdated++;
                 }
             }
@@ -289,7 +290,9 @@ class StorageMigration {
             // Return the S3 URL
             const region = process.env.AWS_REGION;
             const bucket = process.env.AWS_BUCKET_NAME;
-            return `https://${bucket}.s3.${region}.amazonaws.com/${encodeURIComponent(key)}`;
+            // Only encode special characters in the filename, not the entire path
+            const encodedKey = key.split('/').map(segment => encodeURIComponent(segment)).join('/');
+            return `https://${bucket}.s3.${region}.amazonaws.com/${encodedKey}`;
             
         } catch (error) {
             throw new Error(`S3 upload failed: ${error.message}`);
