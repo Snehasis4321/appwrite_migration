@@ -1,5 +1,9 @@
 # 🚀 Appwrite Migration Tool
 
+_Hi, i have several projects in my appwrite account, but now i can keep only 2 projects in free plan and others will be remove so i have written this scripts to easily migrate data to other database and storage provider. If you are also facing this problem then you can use this scripts to complete migration from appwrite to other databases._
+
+> Author: [Snehasis4321](https://github.com/Snehasis4321)
+
 <div align="center">
 
 **Migrate your Appwrite data to PostgreSQL, MySQL, or MongoDB with complete storage migration before the September 1, 2025 deadline**
@@ -18,11 +22,13 @@
 <div align="center">
 
 ### Databases
+
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-005C84?style=for-the-badge&logo=mysql&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
 
 ### Storage Providers
+
 ![AWS S3](https://img.shields.io/badge/AWS%20S3-FF9900?style=for-the-badge&logo=amazon-s3&logoColor=white)
 ![Cloudinary](https://img.shields.io/badge/Cloudinary-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)
 
@@ -91,6 +97,26 @@ MYSQL_PASSWORD=password
 # MongoDB Configuration
 MONGODB_URI=mongodb://localhost:27017/appwrite_migration
 MONGODB_DATABASE=appwrite_migration
+
+
+# Storage Migration Configuration
+# Choose either Cloudinary or AWS S3
+STORAGE_PROVIDER=cloudinary
+# STORAGE_PROVIDER=s3
+
+# Cloudinary Configuration (if using Cloudinary)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# AWS S3 Configuration (if using S3)
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_BUCKET_NAME=your_bucket_name
+
+# Storage Migration Folder Configuration
+STORAGE_FOLDER_PREFIX=my_app_files
 ```
 
 ### 3. Install Dependencies
@@ -170,25 +196,26 @@ pnpm migrate-storage
 
 ### ✅ Fully Supported
 
-| Data Type       | PostgreSQL | MySQL | MongoDB | Notes                                |
-| --------------- | ---------- | ----- | ------- | ------------------------------------ |
-| **Users**       | ✅         | ✅    | ✅      | Complete user profiles, auth data    |
-| **Collections** | ✅         | ✅    | ✅      | Schema, attributes, constraints      |
-| **Documents**   | ✅         | ✅    | ✅      | All document data with relationships |
+| Data Type         | PostgreSQL | MySQL | MongoDB | Notes                                   |
+| ----------------- | ---------- | ----- | ------- | --------------------------------------- |
+| **Users**         | ✅         | ✅    | ✅      | Complete user profiles, auth data       |
+| **Collections**   | ✅         | ✅    | ✅      | Schema, attributes, constraints         |
+| **Documents**     | ✅         | ✅    | ✅      | All document data with relationships    |
 | **Relationships** | ✅         | ✅    | ✅      | Auto-detected and migrated as JSON/TEXT |
-| **Metadata**    | ✅         | ✅    | ✅      | Collection mapping and timestamps    |
+| **Metadata**      | ✅         | ✅    | ✅      | Collection mapping and timestamps       |
 
 ### ✅ Storage Migration (Complete Solution!)
 
 | Storage Type  | Support | Auto-Detection | Database Updates | Notes                                    |
 | ------------- | ------- | -------------- | ---------------- | ---------------------------------------- |
-| **Images**    | ✅      | ✅            | ✅               | JPG, PNG, GIF, WebP with URL updates    |
-| **Documents** | ✅      | ✅            | ✅               | PDF, DOCX, TXT, etc. with metadata      |
-| **Videos**    | ✅      | ✅            | ✅               | MP4, MOV, AVI migrated with processing   |
-| **Audio**     | ✅      | ✅            | ✅               | MP3, WAV, other formats supported       |
-| **Any Files** | ✅      | ✅            | ✅               | All file types with proper MIME handling |
+| **Images**    | ✅      | ✅             | ✅               | JPG, PNG, GIF, WebP with URL updates     |
+| **Documents** | ✅      | ✅             | ✅               | PDF, DOCX, TXT, etc. with metadata       |
+| **Videos**    | ✅      | ✅             | ✅               | MP4, MOV, AVI migrated with processing   |
+| **Audio**     | ✅      | ✅             | ✅               | MP3, WAV, other formats supported        |
+| **Any Files** | ✅      | ✅             | ✅               | All file types with proper MIME handling |
 
 **Key Features:**
+
 - **Automatic URL Updates**: Database fields automatically updated with new cloud URLs
 - **Organized Structure**: Files organized in logical folders (profile-pics, documents, etc.)
 - **Metadata Preservation**: Original filenames and MIME types preserved
@@ -205,6 +232,7 @@ The migration tool **automatically detects and migrates Appwrite relationships**
 - **Data Preservation**: All relationship data migrated without loss
 
 **Example**: A relationship like `"661bf8e58d36ea134982": ["user1", "user2"]` becomes:
+
 - **PostgreSQL/MySQL**: `{"661bf8e58d36ea134982": "[\"user1\", \"user2\"]"}` (JSON string)
 - **MongoDB**: `{"661bf8e58d36ea134982": ["user1", "user2"]}` (native array)
 
@@ -266,6 +294,7 @@ STORAGE_FOLDER_PREFIX=my_app_files  # Optional: custom folder prefix
 ```
 
 **S3 Advantages:**
+
 - ✅ **Cost Effective**: Pay only for what you use
 - ✅ **Direct Access**: Files accessible via direct URLs
 - ✅ **CDN Integration**: Works with CloudFront for faster delivery
@@ -283,6 +312,7 @@ STORAGE_FOLDER_PREFIX=my_app  # Optional: custom folder prefix
 ```
 
 **Cloudinary Advantages:**
+
 - ✅ **Image Processing**: Automatic optimization and transformations
 - ✅ **Video Handling**: Advanced video processing capabilities
 - ✅ **Built-in CDN**: Global content delivery included
@@ -290,17 +320,20 @@ STORAGE_FOLDER_PREFIX=my_app  # Optional: custom folder prefix
 
 #### 🚀 Automated Storage Migration Process
 
-1. **Configuration Detection**: 
+1. **Configuration Detection**:
+
    ```bash
    node src/scripts/storage.js
    ```
 
-2. **Auto-Discovery**: 
+2. **Auto-Discovery**:
+
    - Scans all collections for file-related attributes
    - Detects `profile_pic`, `image`, `avatar`, `attachment`, etc.
    - Identifies file ID patterns and Appwrite URLs
 
 3. **Smart Migration**:
+
    - Downloads files using Appwrite admin API
    - Preserves original filenames and metadata
    - Uploads to your chosen provider with organized structure
@@ -319,14 +352,14 @@ STORAGE_FOLDER_PREFIX=my_app  # Optional: custom folder prefix
 
 📊 Summary:
    • Files transferred: 156
-   • Documents updated: 156  
+   • Documents updated: 156
    • Failed files: 0
    • Storage provider: AWS S3
    • Total size: 245.7 MB
 
 File Organization:
    📁 profile-pics/     → 45 files
-   📁 documents/        → 78 files  
+   📁 documents/        → 78 files
    📁 chat-attachments/ → 33 files
 
 ✅ All database records updated with cloud URLs
@@ -415,12 +448,14 @@ GRANT ALL PRIVILEGES ON your_db.* TO 'your_user'@'%';
 **Initial S3 Setup:**
 
 1. **Create S3 Bucket**:
+
    ```bash
    # Create bucket in your preferred region
    aws s3 mb s3://your-bucket-name --region us-east-1
    ```
 
 2. **Create IAM User with S3 Permissions**:
+
    ```json
    {
      "Version": "2012-10-17",
@@ -429,7 +464,7 @@ GRANT ALL PRIVILEGES ON your_db.* TO 'your_user'@'%';
          "Effect": "Allow",
          "Action": [
            "s3:PutObject",
-           "s3:GetObject", 
+           "s3:GetObject",
            "s3:DeleteObject",
            "s3:ListBucket"
          ],
@@ -458,32 +493,34 @@ GRANT ALL PRIVILEGES ON your_db.* TO 'your_user'@'%';
 
 **Common S3 Issues:**
 
-| Error | Solution |
-|-------|----------|
-| `Access Denied` | Check IAM permissions and bucket policy |
-| `Bucket not found` | Verify bucket name and region in `.env` |
-| `Invalid credentials` | Regenerate AWS access keys |
+| Error                  | Solution                                          |
+| ---------------------- | ------------------------------------------------- |
+| `Access Denied`        | Check IAM permissions and bucket policy           |
+| `Bucket not found`     | Verify bucket name and region in `.env`           |
+| `Invalid credentials`  | Regenerate AWS access keys                        |
 | `Files not accessible` | Set bucket to public read or configure CloudFront |
 
 #### Cloudinary Setup & Issues
 
 **Cloudinary Setup:**
+
 1. Create account at [cloudinary.com](https://cloudinary.com)
 2. Get credentials from Dashboard → Settings → Security
 3. Add to `.env` file
 
 **Common Cloudinary Issues:**
 
-| Error | Solution |
-|-------|----------|
-| `Invalid cloud name` | Check cloud name in Cloudinary dashboard |
-| `API key invalid` | Regenerate API key/secret in Cloudinary |
-| `Upload failed` | Check file size limits and format restrictions |
+| Error                   | Solution                                        |
+| ----------------------- | ----------------------------------------------- |
+| `Invalid cloud name`    | Check cloud name in Cloudinary dashboard        |
+| `API key invalid`       | Regenerate API key/secret in Cloudinary         |
+| `Upload failed`         | Check file size limits and format restrictions  |
 | `Transformation errors` | Verify Cloudinary plan supports transformations |
 
 #### Storage Migration Issues
 
 **File Download Failures:**
+
 ```bash
 # Check Appwrite API access
 curl -H "X-Appwrite-Key: YOUR_API_KEY" \
@@ -491,11 +528,13 @@ curl -H "X-Appwrite-Key: YOUR_API_KEY" \
 ```
 
 **Database Update Failures:**
+
 - Verify database connection is working
 - Check that table and column names match your schema
 - Ensure adequate database permissions
 
 **Large File Issues:**
+
 - Increase Node.js memory: `node --max-old-space-size=4096 src/scripts/storage.js`
 - Use batch processing for large datasets
 - Monitor network timeouts for slow connections
@@ -619,21 +658,22 @@ Having issues with migration or storage? Here's your support roadmap:
 
 ### 🔧 Common Solutions
 
-| Issue Type | Quick Fix | Details |
-|------------|-----------|---------|
-| **Database Connection** | Check credentials & network | See database troubleshooting above |
-| **Storage Upload Fails** | Verify S3/Cloudinary setup | Check storage troubleshooting section |
-| **Migration Stuck** | Check Appwrite API limits | Verify API key permissions |
-| **File URLs Wrong** | Database update failed | Ensure proper database permissions |
+| Issue Type               | Quick Fix                   | Details                               |
+| ------------------------ | --------------------------- | ------------------------------------- |
+| **Database Connection**  | Check credentials & network | See database troubleshooting above    |
+| **Storage Upload Fails** | Verify S3/Cloudinary setup  | Check storage troubleshooting section |
+| **Migration Stuck**      | Check Appwrite API limits   | Verify API key permissions            |
+| **File URLs Wrong**      | Database update failed      | Ensure proper database permissions    |
 
 ### 🚀 Storage Migration Specific Help
 
 **Quick Storage Migration Test:**
+
 ```bash
 # Test S3 connection
 aws s3 ls s3://your-bucket-name
 
-# Test Cloudinary connection  
+# Test Cloudinary connection
 curl -u "your_api_key:your_api_secret" \
      "https://api.cloudinary.com/v1_1/your_cloud_name/resources/image"
 
@@ -642,6 +682,7 @@ node src/scripts/storage.js
 ```
 
 **Migration Logs Location:**
+
 - Console output shows real-time progress
 - Check for `❌ Failed files:` messages
 - Database connection status shown during migration
